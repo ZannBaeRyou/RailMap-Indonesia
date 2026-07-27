@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Operator {
+  id          String   @id @default(cuid())
+  name        String
+  logo        String?
+  serviceType String // e.g., "KAI", "KAI Commuter", "MRT", "LRT", "Whoosh"
+  trains      Train[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Station {
+  id           String     @id @default(cuid())
+  code         String     @unique // e.g., "GMR"
+  name         String
+  city         String?
+  province     String?
+  lat          Float
+  lng          Float
+  type         String // e.g., "MAIN", "COMMUTER", "MRT"
+  tripsOrigin  Trip[]     @relation("OriginStation")
+  tripsDest    Trip[]     @relation("DestinationStation")
+  tripStops    TripStop[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Train {
+  id          String   @id @default(cuid())
+  number      String   @unique // e.g., "KA 12"
+  name        String // e.g., "Argo Bromo Anggrek"
+  operatorId  String
+  operator    Operator @relation(fields: [operatorId], references: [id])
+  serviceType String // e.g., "Intercity", "Commuter"
+  class       String? // e.g., "Executive"
+  trips       Trip[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Trip {
+  id                 String     @id @default(cuid())
+  trainId            String
+  train              Train      @relation(fields: [trainId], references: [id])
+  originId           String
+  origin             Station    @relation("OriginStation", fields: [originId], references: [id])
+  destinationId      String
+  destination        Station    @relation("DestinationStation", fields: [destinationId], references: [id])
+  
+  scheduledDeparture DateTime
+  estimatedDeparture DateTime?
+  actualDeparture    DateTime?
+  
+  scheduledArrival   DateTime
+  estimatedArrival   DateTime?
+  actualArrival      DateTime?
+
+  currentStatus      String     @default("SCHEDULED") // SCHEDULED, BOARDING, IN_TRANSIT, ARRIVED, DELAYED, CANCELLED
+  delayMinutes       Int        @default(0)
+  
+  currentLat         Float?
+  currentLng         Float?
+  currentSpeed       Float?
+  heading            Float?
+  positionSource     String     @default("SCHEDULED") // LIVE, ESTIMATED, SCHEDULED, OFFLINE
+  lastUpdated        DateTime   @default(now())
+  
+  stops              TripStop[]
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+}
+
+model TripStop {
+  id                 String   @id @default(cuid())
+  tripId             String
+  trip               Trip     @relation(fields: [tripId], references: [id])
+  stationId          String
+  station            Station  @relation(fields: [stationId], references: [id])
+  
+  scheduledArrival   DateTime
+  estimatedArrival   DateTime?
+  actualArrival      DateTime?
+  
+  scheduledDeparture DateTime
+  estimatedDeparture DateTime?
+  actualDeparture    DateTime?
+  
+  platform           String?
+  status             String   @default("SCHEDULED")
+  delayMinutes       Int      @default(0)
+  
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model Disruption {
+  id          String   @id @default(cuid())
+  title       String
+  type        String // WEATHER, TRACK, SIGNAL, TRAIN, OTHER
+  severity    String // INFO, LOW, MEDIUM, HIGH, CRITICAL
+  location    String?
+  status      String // ACTIVE, RESOLVED
+  description String
+  startTime   DateTime @default(now())
+  endTime     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
